@@ -5,6 +5,8 @@
     <color name="black">#000000</color>
     <color name="transparent100">#00000000</color>
     <color name="gary">#777</color>
+    <color name="gary50">#88777777</color>
+    <color name="gary30">#66333333</color>
     <color name="colorPrimary">#F44336</color>
     <color name="colorPrimaryDark">#D32F2F</color>
     <color name="colorAccent">#448AFF</color>

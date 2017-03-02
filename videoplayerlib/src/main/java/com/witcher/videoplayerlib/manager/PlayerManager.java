@@ -5,11 +5,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.os.PersistableBundle;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -23,6 +27,7 @@ import android.widget.TextView;
 import com.witcher.videoplayerlib.Constant;
 import com.witcher.videoplayerlib.R;
 import com.witcher.videoplayerlib.Util.L;
+import com.witcher.videoplayerlib.Util.ToastUtil;
 import com.witcher.videoplayerlib.Util.Util;
 import com.witcher.videoplayerlib.adapter.DefinitionAdapter;
 import com.witcher.videoplayerlib.broadcastreceiver.BatteryChangedReceiver;
@@ -47,9 +52,10 @@ public class PlayerManager implements View.OnClickListener {
     private Activity mActivity;
     private AudioManager mAudioManager;
     private BatteryChangedReceiver mBatteryChangedReceiver;
-    private View mViewRoot;
     private Video mVideo;
+    private Looper mLoopler;
 
+    private View mViewRoot;
     private FrameLayout mFlMain;
     private ListView mLvDefinition;
     private DefinitionAdapter mDefinitionAdapter;
@@ -58,10 +64,11 @@ public class PlayerManager implements View.OnClickListener {
     private SeekBar mSbVideo;
     private ProgressBar mPbVolume, mPbBrightness;
     private ImageView mIvPause, mIvTvPause, mIvBattery;
-    private RelativeLayout mRlTop, mRlSeek, mRlMenu, mRlDefinition;
+    private RelativeLayout mRlTop, mRlSeek, mRlMenu, mRlDefinitionFull, mRlDefinitionLv,mRlLoading;
     private LinearLayout mLlBottom, mLlVolume, mLlBrightness;
+    private Animation mAnDefinitionOut, mAnDefinitionIn;
 
-    private boolean mIsDragging, mIsLive, mIsTouchDragging, mIsDefinition;
+    private boolean mIsDragging, mIsLive, mIsTouchDragging, mIsDefinitionCloseing;
     private int mIntSreenWidth, mIntMaxVolume, mIntCurrentVolume, mIntCurrentBrightness, mIntCurrentPosition, mIntNewProgress;
 
     private interface MsgWhat {
@@ -110,7 +117,7 @@ public class PlayerManager implements View.OnClickListener {
         this.mActivity = context;
         initView();
         initData();
-        new Looper().loop();
+        mLoopler = new Looper().loop();
     }
 
     private void initView() {
@@ -126,13 +133,15 @@ public class PlayerManager implements View.OnClickListener {
         mSbVideo = (SeekBar) mViewRoot.findViewById(R.id.sb_seek);
         mPbVolume = (ProgressBar) mViewRoot.findViewById(R.id.pb_volume);
         mPbBrightness = (ProgressBar) mViewRoot.findViewById(R.id.pb_brightness);
+        mRlLoading = (RelativeLayout) mViewRoot.findViewById(R.id.rl_loading);
         mIvPause = (ImageView) mViewRoot.findViewById(R.id.iv_pause);
         mIvTvPause = (ImageView) mViewRoot.findViewById(R.id.iv_tv_pause);
         mIvBattery = (ImageView) mViewRoot.findViewById(R.id.iv_battery);
         mRlTop = (RelativeLayout) mViewRoot.findViewById(R.id.rl_top);
         mRlSeek = (RelativeLayout) mViewRoot.findViewById(R.id.rl_seek);
         mRlMenu = (RelativeLayout) mViewRoot.findViewById(R.id.rl_menu);
-        mRlDefinition = (RelativeLayout) mViewRoot.findViewById(R.id.rl_definition);
+        mRlDefinitionFull = (RelativeLayout) mViewRoot.findViewById(R.id.rl_definition_full);
+        mRlDefinitionLv = (RelativeLayout) mViewRoot.findViewById(R.id.rl_definition_lv);
         mLlBottom = (LinearLayout) mViewRoot.findViewById(R.id.ll_bottom);
         mLlVolume = (LinearLayout) mViewRoot.findViewById(R.id.ll_volume);
         mLlBrightness = (LinearLayout) mViewRoot.findViewById(R.id.ll_brightness);
@@ -143,10 +152,7 @@ public class PlayerManager implements View.OnClickListener {
         mDefinitionAdapter.setOnItemClick(new DefinitionAdapter.OnItemClick() {
             @Override
             public void onClick(int position) {
-//                if(mVideo!=null){
-//                    mVvContent.setVideoPath(mVideo.getList().get(position).getUrl());
-//                }
-//                hideDefinition();
+                switchDefinition(position);
             }
         });
         mLvDefinition.setAdapter(mDefinitionAdapter);
@@ -157,6 +163,9 @@ public class PlayerManager implements View.OnClickListener {
         mSbVideo.setOnSeekBarChangeListener(mSeekListener);
         mVvContent.setOnSeekCompleteListener(mOnSeekCompleteListener);
         mVvContent.setOnPreparedListener(mOnPreparedListener);
+        mVvContent.setOnCompletionListener(mOnCompletionListener);
+        mVvContent.setOnErrorListener(mOnErrorListener);
+        mVvContent.setOnInfoListener(mOnInfoListener);
         mFlMain.setClickable(true);
         final GestureDetector gestureDetector = new GestureDetector(mActivity, new PlayerGestureListener());
         mFlMain.setOnTouchListener(new View.OnTouchListener() {
@@ -166,9 +175,7 @@ public class PlayerManager implements View.OnClickListener {
                     return true;
                 switch (event.getAction() & MotionEvent.ACTION_MASK) {
                     case MotionEvent.ACTION_UP:
-                        if (mIsDefinition) {
-                            mIsDefinition = false;
-                        } else if (mIsTouchDragging) {
+                        if (mIsTouchDragging) {
                             mIsTouchDragging = false;
                             seekTo();
                         } else {
@@ -178,6 +185,15 @@ public class PlayerManager implements View.OnClickListener {
                         break;
                 }
                 return false;
+            }
+        });
+        mRlDefinitionFull.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (!mIsDefinitionCloseing) {
+                    hideDefinition();
+                }
+                return true;
             }
         });
     }
@@ -214,6 +230,60 @@ public class PlayerManager implements View.OnClickListener {
         }
     }
 
+    private IMediaPlayer.OnErrorListener mOnErrorListener = new IMediaPlayer.OnErrorListener() {
+        @Override
+        public boolean onError(IMediaPlayer iMediaPlayer, int what, int extra) {
+            L.i("onError what:" + what + ",extra:" + extra);
+            switch (what) {
+                case IMediaPlayer.MEDIA_ERROR_UNKNOWN: {
+                    ToastUtil.show(mActivity, "未知错误");
+                }
+                break;
+                case IMediaPlayer.MEDIA_ERROR_SERVER_DIED: {
+                    ToastUtil.show(mActivity, "服务挂了");
+                }
+                break;
+                case IMediaPlayer.MEDIA_ERROR_NOT_VALID_FOR_PROGRESSIVE_PLAYBACK: {
+                    ToastUtil.show(mActivity, "无法进行逐行播放");
+                }
+                break;
+                case IMediaPlayer.MEDIA_ERROR_IO: {
+                    ToastUtil.show(mActivity, "IO异常");
+                }
+                break;
+                case IMediaPlayer.MEDIA_ERROR_MALFORMED: {
+                    ToastUtil.show(mActivity, "文件损坏");
+                }
+                break;
+                case IMediaPlayer.MEDIA_ERROR_UNSUPPORTED: {
+                    ToastUtil.show(mActivity, "不支持的格式");
+                }
+                break;
+                case IMediaPlayer.MEDIA_ERROR_TIMED_OUT: {
+                    ToastUtil.show(mActivity, "连接超时");
+                }
+                break;
+                case -10000: {
+                    ToastUtil.show(mActivity, "视频不存在或无权限403");
+                }
+                break;
+
+            }
+            return true;
+        }
+    };
+
+    private IMediaPlayer.OnCompletionListener mOnCompletionListener = new IMediaPlayer.OnCompletionListener() {
+        @Override
+        public void onCompletion(IMediaPlayer iMediaPlayer) {
+            L.i("onCompletion");
+            mIvPause.setImageResource(R.drawable.bili_player_play_can_play);
+            mIvTvPause.setImageResource(R.drawable.ic_tv_play);
+            showAllHud();
+            ToastUtil.show(mActivity, "播放完成");
+        }
+    };
+
     private IMediaPlayer.OnPreparedListener mOnPreparedListener = new IMediaPlayer.OnPreparedListener() {
 
         @Override
@@ -230,7 +300,29 @@ public class PlayerManager implements View.OnClickListener {
         public void onSeekComplete(IMediaPlayer iMediaPlayer) {
             L.i("onSeekComplete:" + Util.formatTime(iMediaPlayer.getCurrentPosition()));
             mHandler.sendEmptyMessage(MsgWhat.NOTIFY_UI);
+            mHandler.removeMessages(MsgWhat.HIDE_ALL_HUD);
+            showAllHud();
+            mHandler.sendEmptyMessageDelayed(MsgWhat.HIDE_ALL_HUD,Constant.HUD_AUTO_HIDE);
             mIsDragging = false;
+        }
+    };
+
+    private IMediaPlayer.OnInfoListener mOnInfoListener = new IMediaPlayer.OnInfoListener() {
+        @Override
+        public boolean onInfo(IMediaPlayer iMediaPlayer, int what, int extra) {
+            switch (what) {
+                case IMediaPlayer.MEDIA_INFO_BUFFERING_START: {
+                    L.i("开始缓冲");
+                    showLoadingView();
+                }
+                break;
+                case IMediaPlayer.MEDIA_INFO_BUFFERING_END: {
+                    L.i("缓冲结束");
+                    hideLoadingView();
+                }
+                break;
+            }
+            return false;
         }
     };
 
@@ -271,23 +363,15 @@ public class PlayerManager implements View.OnClickListener {
 
         @Override
         public boolean onDown(MotionEvent e) {
-            if (isDefinitionShow()) {
-                mIsDownTouch = true;
-                hideDefinition();
-            }else{
-                mIsDownTouch = true;
-                mIntCurrentVolume = mPbVolume.getProgress();
-                mIntCurrentBrightness = mPbBrightness.getProgress();
-                mIntCurrentPosition = mSbVideo.getProgress();
-            }
+            mIsDownTouch = true;
+            mIntCurrentVolume = mPbVolume.getProgress();
+            mIntCurrentBrightness = mPbBrightness.getProgress();
+            mIntCurrentPosition = mSbVideo.getProgress();
             return false;
         }
 
         @Override
         public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-            if(mIsDefinition){
-                return false;
-            }
             float mOldX = e1.getX(), mOldY = e1.getY();
             float deltaX = mOldX - e2.getX();
             if (mIsDownTouch) {
@@ -316,9 +400,6 @@ public class PlayerManager implements View.OnClickListener {
 
         @Override
         public boolean onSingleTapConfirmed(MotionEvent e) {
-            if(mIsDefinition){
-                return false;
-            }
             hudShowOrHide();
             return false;
         }
@@ -343,8 +424,21 @@ public class PlayerManager implements View.OnClickListener {
             });
         }
 
-        private void loop() {
+        private Looper loop() {
             start();
+            return this;
+        }
+    }
+
+    private void showLoadingView(){
+        if(mRlLoading.getVisibility() == View.GONE){
+            mRlLoading.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void hideLoadingView(){
+        if(mRlLoading.getVisibility() == View.VISIBLE){
+            mRlLoading.setVisibility(View.GONE);
         }
     }
 
@@ -410,6 +504,7 @@ public class PlayerManager implements View.OnClickListener {
         L.i("showAllHud");
         if (mRlTop.getVisibility() == View.GONE) {
             mRlTop.setVisibility(View.VISIBLE);
+            mTvTime.setText(Util.getTime());
         }
         if (mIvTvPause.getVisibility() == View.GONE) {
             mIvTvPause.setVisibility(View.VISIBLE);
@@ -457,19 +552,44 @@ public class PlayerManager implements View.OnClickListener {
     }
 
     private void hideDefinition() {
-        if (mRlDefinition.getVisibility() == View.VISIBLE) {
-            mRlDefinition.setVisibility(View.GONE);
+        if (mRlDefinitionFull.getVisibility() == View.VISIBLE) {
+            mIsDefinitionCloseing = true;
+            if (mAnDefinitionOut == null) {
+                mAnDefinitionOut = AnimationUtils.loadAnimation(mActivity, R.anim.out_to_right);
+                mAnDefinitionOut.setAnimationListener(new Animation.AnimationListener() {
+                    @Override
+                    public void onAnimationStart(Animation animation) {
+
+                    }
+
+                    @Override
+                    public void onAnimationEnd(Animation animation) {
+                        mRlDefinitionFull.setVisibility(View.GONE);
+                        mIsDefinitionCloseing = false;
+                    }
+
+                    @Override
+                    public void onAnimationRepeat(Animation animation) {
+
+                    }
+                });
+            }
+            mRlDefinitionLv.startAnimation(mAnDefinitionOut);
         }
     }
 
     private void showDefinition() {
-        if (mRlDefinition.getVisibility() == View.GONE) {
-            mRlDefinition.setVisibility(View.VISIBLE);
+        if (mRlDefinitionFull.getVisibility() == View.GONE) {
+            mRlDefinitionFull.setVisibility(View.VISIBLE);
+            if (mAnDefinitionIn == null) {
+                mAnDefinitionIn = AnimationUtils.loadAnimation(mActivity, R.anim.in_from_right);
+            }
+            mRlDefinitionLv.startAnimation(mAnDefinitionIn);
         }
     }
 
     private boolean isDefinitionShow() {
-        return mRlDefinition.getVisibility() == View.VISIBLE;
+        return mRlDefinitionFull.getVisibility() == View.VISIBLE;
     }
 
     private void pauseOrStart() {
@@ -506,6 +626,14 @@ public class PlayerManager implements View.OnClickListener {
         mHandler.sendEmptyMessageDelayed(MsgWhat.HIDE_ALL_HUD, Constant.HUD_AUTO_HIDE);
     }
 
+    private void switchDefinition(int position) {
+        if (mVideo != null) {
+            int progress = mVvContent.getCurrentPosition();
+            mVvContent.setVideoPath(mVideo.getList().get(position).getUrl());
+            mVvContent.seekTo(progress);
+        }
+        hideDefinition();
+    }
 //    private void setVvPreview(){
 //        L.i("PreviewseekTo:" + Util.formatTime(mSbVideo.getProgress()));
 //        mVvPreview.seekTo(mSbVideo.getProgress());
@@ -513,12 +641,14 @@ public class PlayerManager implements View.OnClickListener {
 
     private void setProgress(int second) {
         //一个屏幕宽是90秒的进度 停止looper,
-        if (isHudShow()) {
-            mHandler.removeMessages(MsgWhat.HIDE_ALL_HUD);
-        } else {
-            mHandler.removeMessages(MsgWhat.HIDE_VIDEO_PROGRESS);
-            showVideoProgressHud();
-        }
+//        if (isHudShow()) {
+//            mHandler.removeMessages(MsgWhat.HIDE_ALL_HUD);
+//        } else {
+//            mHandler.removeMessages(MsgWhat.HIDE_VIDEO_PROGRESS);
+//            showVideoProgressHud();
+//        }
+        mHandler.removeMessages(MsgWhat.HIDE_ALL_HUD);
+        showAllHud();
         mIsTouchDragging = true;
         mIntNewProgress = mIntCurrentPosition + (second * 1000);
         if (mIntNewProgress < 0) {
@@ -548,10 +678,10 @@ public class PlayerManager implements View.OnClickListener {
             int value = Math.round((float) newVolume / mIntMaxVolume * 100);
             mTvCenter.setText(String.format(mActivity.getResources().getString(R.string.set_volume), value));
         }
-        mPbVolume.setProgress(newVolume);
         if (mPbVolume.getProgress() != newVolume) {
             Util.setVolume(mAudioManager, newVolume);
         }
+        mPbVolume.setProgress(newVolume);
         mHandler.sendEmptyMessageDelayed(MsgWhat.HIDE_CENTER_TV, Constant.VOLUME_HUD_AUTO_HIDE);
     }
 
@@ -584,12 +714,12 @@ public class PlayerManager implements View.OnClickListener {
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onMessageEvent(NetStateEvent event) {
+    public void onNetStateEvent(NetStateEvent event) {
         mTvNetState.setText(Util.getNetState(mActivity, event.netState));
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onMessageEvent(BatteryStateEvent event) {
+    public void onBatteryStateEvent(BatteryStateEvent event) {
         mIvBattery.setImageResource(Util.getBatteryStateRes(event.batteryState));
     }
 
@@ -608,7 +738,7 @@ public class PlayerManager implements View.OnClickListener {
 //        mVvPreview.setVideoPath(video.getUri());
     }
 
-    public void setHudView(TableLayout hudView) {
+    public void setDebugHudView(TableLayout hudView) {
         mVvContent.setHudView(hudView);
     }
 
@@ -616,7 +746,28 @@ public class PlayerManager implements View.OnClickListener {
         this.mIsLive = isLive;
     }
 
+    public void onStop() {
+
+    }
+
+    public void onPause() {
+
+    }
+
+    public void onRestart() {
+
+    }
+
+    public void onSaveInstanceState(Bundle outState, PersistableBundle outPersistentState) {
+
+    }
+
+    public void onRestoreInstanceState(Bundle savedInstanceState) {
+
+    }
+
     public void onDestroy() {
+        mLoopler.interrupt();
         mActivity.unregisterReceiver(mBatteryChangedReceiver);
         EventBus.getDefault().unregister(this);
     }
