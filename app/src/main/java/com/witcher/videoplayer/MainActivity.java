@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-    private String url2 = "http://cn-sdjn-cu-v-09.acgvideo.com/vg0/3/d8/14671202-1.mp4?expires=1488454200&platform=html5&ssig=YRgs-ypD3EnHXEqx0WtMLg&oi=2071384608&nfa=BaDS8BUFZDb8iKo4Vfwarw==&dynamic=1";
+    private String url2 = "http://cn-hbcd2-cu-v-03.acgvideo.com/vg3/e/3e/14590862-1.mp4?expires=1488465600&platform=html5&ssig=6WxwKJa_fQz2RV6mTvLOKw&oi=2071384608&nfa=BaDS8BUFZDb8iKo4Vfwarw==&dynamic=1";
     private String url3 = Environment.getExternalStorageDirectory().getPath() + File.separator + "abc.mkv";
     private PlayerManager mPlayerManager;
 
