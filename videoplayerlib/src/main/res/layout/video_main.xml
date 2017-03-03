@@ -90,47 +90,6 @@
             android:src="@drawable/ic_brightness_2" />
     </LinearLayout>
 
-    <RelativeLayout
-        android:id="@+id/rl_top"
-        android:layout_width="match_parent"
-        android:layout_height="36dp"
-        android:background="@color/comm_video_bg">
-
-        <TextView
-            android:id="@+id/tv_name"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
-            android:layout_marginLeft="16dp"
-            android:textColor="@color/white" />
-
-        <TextView
-            android:id="@+id/tv_time"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:layout_marginLeft="14dp"
-            android:layout_marginRight="6dp"
-            android:textColor="@color/white" />
-
-        <TextView
-            android:id="@+id/tv_net_state"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
-            android:layout_marginLeft="14dp"
-            android:layout_marginRight="6dp"
-            android:layout_toRightOf="@+id/tv_time"
-            android:textColor="@color/white" />
-
-        <ImageView
-            android:id="@+id/iv_battery"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
-            android:layout_toRightOf="@+id/tv_net_state" />
-    </RelativeLayout>
-
     <LinearLayout
         android:id="@+id/ll_bottom"
         android:layout_width="match_parent"
@@ -159,14 +118,14 @@
 
 
         <RelativeLayout
-            android:paddingBottom="8dp"
-            android:paddingTop="6dp"
             android:id="@+id/rl_seek"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@color/comm_video_bg">
 
             <SeekBar
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="6dp"
                 android:thumb="@drawable/slider_thumb"
                 android:maxHeight="2dp"
                 android:splitTrack="false"
@@ -227,6 +186,7 @@
                 android:textSize="12sp" />
 
             <TextView
+                android:gravity="center"
                 android:id="@+id/tv_definition"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
@@ -284,6 +244,56 @@
             android:layout_below="@+id/pb_loading"
             android:text="缓冲中"
             android:textColor="@color/black" />
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@+id/rl_top"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:background="@color/comm_video_bg">
+
+        <ImageView
+            android:layout_marginLeft="16dp"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_return"
+            android:id="@+id/iv_return"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:layout_toRightOf="@+id/iv_return"
+            android:id="@+id/tv_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_marginLeft="12dp"
+            android:textColor="@color/white" />
+
+        <TextView
+            android:id="@+id/tv_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:layout_marginLeft="14dp"
+            android:layout_marginRight="6dp"
+            android:textColor="@color/white" />
+
+        <TextView
+            android:id="@+id/tv_net_state"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_marginLeft="14dp"
+            android:layout_marginRight="6dp"
+            android:layout_toRightOf="@+id/tv_time"
+            android:textColor="@color/white" />
+
+        <ImageView
+            android:id="@+id/iv_battery"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_toRightOf="@+id/tv_net_state" />
     </RelativeLayout>
 </FrameLayout>
 

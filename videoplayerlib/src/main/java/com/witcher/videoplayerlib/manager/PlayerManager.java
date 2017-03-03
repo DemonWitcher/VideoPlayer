@@ -63,7 +63,7 @@ public class PlayerManager implements View.OnClickListener {
     private TextView mTvName, mTvPosition, mTvDuration, mTvCenter, mTvTime, mTvNetState, mTvDefinition;
     private SeekBar mSbVideo;
     private ProgressBar mPbVolume, mPbBrightness;
-    private ImageView mIvPause, mIvTvPause, mIvBattery;
+    private ImageView mIvPause, mIvTvPause, mIvBattery,mIvReturn;
     private RelativeLayout mRlTop, mRlSeek, mRlMenu, mRlDefinitionFull, mRlDefinitionLv,mRlLoading;
     private LinearLayout mLlBottom, mLlVolume, mLlBrightness;
     private Animation mAnDefinitionOut, mAnDefinitionIn;
@@ -137,6 +137,7 @@ public class PlayerManager implements View.OnClickListener {
         mIvPause = (ImageView) mViewRoot.findViewById(R.id.iv_pause);
         mIvTvPause = (ImageView) mViewRoot.findViewById(R.id.iv_tv_pause);
         mIvBattery = (ImageView) mViewRoot.findViewById(R.id.iv_battery);
+        mIvReturn = (ImageView) mViewRoot.findViewById(R.id.iv_return);
         mRlTop = (RelativeLayout) mViewRoot.findViewById(R.id.rl_top);
         mRlSeek = (RelativeLayout) mViewRoot.findViewById(R.id.rl_seek);
         mRlMenu = (RelativeLayout) mViewRoot.findViewById(R.id.rl_menu);
@@ -160,6 +161,7 @@ public class PlayerManager implements View.OnClickListener {
         mIvPause.setOnClickListener(this);
         mIvTvPause.setOnClickListener(this);
         mTvDefinition.setOnClickListener(this);
+        mIvReturn.setOnClickListener(this);
         mSbVideo.setOnSeekBarChangeListener(mSeekListener);
         mVvContent.setOnSeekCompleteListener(mOnSeekCompleteListener);
         mVvContent.setOnPreparedListener(mOnPreparedListener);
@@ -227,6 +229,8 @@ public class PlayerManager implements View.OnClickListener {
             pauseOrStart();
         } else if (i == R.id.tv_definition) {
             showOrHideDefinition();
+        }else if (i == R.id.iv_return) {
+            mActivity.finish();
         }
     }
 
@@ -277,8 +281,7 @@ public class PlayerManager implements View.OnClickListener {
         @Override
         public void onCompletion(IMediaPlayer iMediaPlayer) {
             L.i("onCompletion");
-            mIvPause.setImageResource(R.drawable.bili_player_play_can_play);
-            mIvTvPause.setImageResource(R.drawable.ic_tv_play);
+           uiPause();
             showAllHud();
             ToastUtil.show(mActivity, "播放完成");
         }
@@ -595,13 +598,17 @@ public class PlayerManager implements View.OnClickListener {
     private void pauseOrStart() {
         if (mVvContent.isPlaying()) {
             mVvContent.pause();
-            mIvPause.setImageResource(R.drawable.bili_player_play_can_play);
-            mIvTvPause.setImageResource(R.drawable.ic_tv_play);
+            uiPause();
         } else {
             mVvContent.start();
             mIvPause.setImageResource(R.drawable.bili_player_play_can_pause);
             mIvTvPause.setImageResource(R.drawable.ic_tv_stop);
         }
+    }
+
+    private void uiPause(){
+        mIvPause.setImageResource(R.drawable.bili_player_play_can_play);
+        mIvTvPause.setImageResource(R.drawable.ic_tv_play);
     }
 
     private void notifyUI() {
@@ -630,7 +637,9 @@ public class PlayerManager implements View.OnClickListener {
         if (mVideo != null) {
             int progress = mVvContent.getCurrentPosition();
             mVvContent.setVideoPath(mVideo.getList().get(position).getUrl());
-            mVvContent.seekTo(progress);
+            if(!mIsLive){
+                mVvContent.seekTo(progress);
+            }
         }
         hideDefinition();
     }
@@ -735,6 +744,19 @@ public class PlayerManager implements View.OnClickListener {
         mVvContent.setVideoPath(definition.getUrl());
         mTvDefinition.setText(definition.getName());
         mTvName.setText(video.getName());
+        mIsLive = mVideo.isLive();
+        L.i("mIsLive:"+mIsLive);
+        if(mIsLive){
+            mTvPosition.setVisibility(View.GONE);
+            mTvDuration.setVisibility(View.GONE);
+            mViewRoot.findViewById(R.id.tv_time_middle).setVisibility(View.GONE);
+            mSbVideo.setVisibility(View.GONE);
+        }else{
+            mTvPosition.setVisibility(View.VISIBLE);
+            mTvDuration.setVisibility(View.VISIBLE);
+            mViewRoot.findViewById(R.id.tv_time_middle).setVisibility(View.VISIBLE);
+            mSbVideo.setVisibility(View.VISIBLE);
+        }
 //        mVvPreview.setVideoPath(video.getUri());
     }
 
@@ -747,7 +769,8 @@ public class PlayerManager implements View.OnClickListener {
     }
 
     public void onStop() {
-
+        uiPause();
+        mVvContent.pause();
     }
 
     public void onPause() {
@@ -755,7 +778,7 @@ public class PlayerManager implements View.OnClickListener {
     }
 
     public void onRestart() {
-
+        showAllHud();
     }
 
     public void onSaveInstanceState(Bundle outState, PersistableBundle outPersistentState) {
@@ -767,6 +790,7 @@ public class PlayerManager implements View.OnClickListener {
     }
 
     public void onDestroy() {
+        mVvContent.release(true);
         mLoopler.interrupt();
         mActivity.unregisterReceiver(mBatteryChangedReceiver);
         EventBus.getDefault().unregister(this);

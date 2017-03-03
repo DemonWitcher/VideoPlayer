@@ -44,6 +44,7 @@ public class Settings {
     }
 
     public int getPlayer() {
+//        return 1;
         String key = mAppContext.getString(R.string.pref_key_player);
         String value = mSharedPreferences.getString(key, "");
         try {
