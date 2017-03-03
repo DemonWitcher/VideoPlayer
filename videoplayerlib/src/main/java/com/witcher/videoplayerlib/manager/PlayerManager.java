@@ -612,8 +612,10 @@ public class PlayerManager implements View.OnClickListener {
     }
 
     private void notifyUI() {
-        setTvPosition(mVvContent.getCurrentPosition());
-        setSbPosition();
+        if(!mIsLive){
+            setTvPosition(mVvContent.getCurrentPosition());
+            setSbPosition();
+        }
         mTvTime.setText(Util.getTime());
     }
 
