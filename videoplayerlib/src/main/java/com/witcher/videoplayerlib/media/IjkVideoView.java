@@ -244,6 +244,10 @@ public class IjkVideoView extends FrameLayout implements MediaController.MediaPl
         mHudViewHolder = new InfoHudViewHolder(getContext(), tableLayout);
     }
 
+    public void removeHudMessage(){
+        mHudViewHolder.removeAllMessage();
+    }
+
     /**
      * Sets video path.
      *

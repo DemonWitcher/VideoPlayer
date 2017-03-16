@@ -1,1 +1,1 @@
-include ':app', ':videoplayerlib'
+include ':app', ':videoplayerlib', ':ijkplayer-armv7a'

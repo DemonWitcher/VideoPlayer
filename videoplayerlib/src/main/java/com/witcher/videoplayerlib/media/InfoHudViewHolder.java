@@ -9,6 +9,7 @@ import android.widget.TableLayout;
 
 import com.witcher.videoplayerlib.R;
 
+import java.lang.ref.WeakReference;
 import java.util.Locale;
 
 import tv.danmaku.ijk.media.player.IMediaPlayer;
@@ -55,8 +56,8 @@ public class InfoHudViewHolder {
     }
 
     private static String formatedDurationMilli(long duration) {
-        if (duration >=  1000) {
-            return String.format(Locale.US, "%.2f sec", ((float)duration) / 1000);
+        if (duration >= 1000) {
+            return String.format(Locale.US, "%.2f sec", ((float) duration) / 1000);
         } else {
             return String.format(Locale.US, "%d msec", duration);
         }
@@ -71,48 +72,63 @@ public class InfoHudViewHolder {
             return "0 B/s";
         }
 
-        float bytes_per_sec = ((float)bytes) * 1000.f /  elapsed_milli;
+        float bytes_per_sec = ((float) bytes) * 1000.f / elapsed_milli;
         if (bytes_per_sec >= 1000 * 1000) {
-            return String.format(Locale.US, "%.2f MB/s", ((float)bytes_per_sec) / 1000 / 1000);
+            return String.format(Locale.US, "%.2f MB/s", ((float) bytes_per_sec) / 1000 / 1000);
         } else if (bytes_per_sec >= 1000) {
-            return String.format(Locale.US, "%.1f KB/s", ((float)bytes_per_sec) / 1000);
+            return String.format(Locale.US, "%.1f KB/s", ((float) bytes_per_sec) / 1000);
         } else {
-            return String.format(Locale.US, "%d B/s", (long)bytes_per_sec);
+            return String.format(Locale.US, "%d B/s", (long) bytes_per_sec);
         }
     }
 
-    public void updateLoadCost(long time)  {
+    public void updateLoadCost(long time) {
         mLoadCost = time;
     }
 
-    public void updateSeekCost(long time)  {
+    public void updateSeekCost(long time) {
         mSeekCost = time;
     }
 
     private static String formatedSize(long bytes) {
         if (bytes >= 100 * 1000) {
-            return String.format(Locale.US, "%.2f MB", ((float)bytes) / 1000 / 1000);
+            return String.format(Locale.US, "%.2f MB", ((float) bytes) / 1000 / 1000);
         } else if (bytes >= 100) {
-            return String.format(Locale.US, "%.1f KB", ((float)bytes) / 1000);
+            return String.format(Locale.US, "%.1f KB", ((float) bytes) / 1000);
         } else {
             return String.format(Locale.US, "%d B", bytes);
         }
     }
 
+    public void removeAllMessage() {
+        mHandler.removeMessages(MSG_UPDATE_HUD);
+    }
+
     private static final int MSG_UPDATE_HUD = 1;
-    private Handler mHandler = new Handler() {
+    private HudHandler mHandler = new HudHandler(InfoHudViewHolder.this);
+
+    private static class HudHandler extends Handler {
+        private WeakReference<InfoHudViewHolder> hudViewHolderWeakReference;
+
+        HudHandler(InfoHudViewHolder infoHudViewHolder) {
+            hudViewHolderWeakReference = new WeakReference<>(infoHudViewHolder);
+        }
+
+        private InfoHudViewHolder get() {
+            return hudViewHolderWeakReference.get();
+        }
+
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
                 case MSG_UPDATE_HUD: {
-                    InfoHudViewHolder holder = InfoHudViewHolder.this;
                     IjkMediaPlayer mp = null;
-                    if (mMediaPlayer == null)
+                    if (get().mMediaPlayer == null)
                         break;
-                    if (mMediaPlayer instanceof IjkMediaPlayer) {
-                        mp = (IjkMediaPlayer) mMediaPlayer;
-                    } else if (mMediaPlayer instanceof MediaPlayerProxy) {
-                        MediaPlayerProxy proxy = (MediaPlayerProxy) mMediaPlayer;
+                    if (get().mMediaPlayer instanceof IjkMediaPlayer) {
+                        mp = (IjkMediaPlayer) get().mMediaPlayer;
+                    } else if (get().mMediaPlayer instanceof MediaPlayerProxy) {
+                        MediaPlayerProxy proxy = (MediaPlayerProxy) get().mMediaPlayer;
                         IMediaPlayer internal = proxy.getInternalMediaPlayer();
                         if (internal != null && internal instanceof IjkMediaPlayer)
                             mp = (IjkMediaPlayer) internal;
@@ -123,40 +139,42 @@ public class InfoHudViewHolder {
                     int vdec = mp.getVideoDecoder();
                     switch (vdec) {
                         case IjkMediaPlayer.FFP_PROPV_DECODER_AVCODEC:
-                            setRowValue(R.string.vdec, "avcodec");
+                            get().setRowValue(R.string.vdec, "avcodec");
                             break;
                         case IjkMediaPlayer.FFP_PROPV_DECODER_MEDIACODEC:
-                            setRowValue(R.string.vdec, "MediaCodec");
+                            get().setRowValue(R.string.vdec, "MediaCodec");
                             break;
                         default:
-                            setRowValue(R.string.vdec, "");
+                            get().setRowValue(R.string.vdec, "");
                             break;
                     }
 
                     float fpsOutput = mp.getVideoOutputFramesPerSecond();
                     float fpsDecode = mp.getVideoDecodeFramesPerSecond();
-                    setRowValue(R.string.fps, String.format(Locale.US, "%.2f / %.2f", fpsDecode, fpsOutput));
+                    get().setRowValue(R.string.fps, String.format(Locale.US, "%.2f / %.2f", fpsDecode, fpsOutput));
 
                     long videoCachedDuration = mp.getVideoCachedDuration();
                     long audioCachedDuration = mp.getAudioCachedDuration();
-                    long videoCachedBytes    = mp.getVideoCachedBytes();
-                    long audioCachedBytes    = mp.getAudioCachedBytes();
-                    long tcpSpeed            = mp.getTcpSpeed();
-                    long bitRate             = mp.getBitRate();
-                    long seekLoadDuration    = mp.getSeekLoadDuration();
+                    long videoCachedBytes = mp.getVideoCachedBytes();
+                    long audioCachedBytes = mp.getAudioCachedBytes();
+                    long tcpSpeed = mp.getTcpSpeed();
+                    long bitRate = mp.getBitRate();
+                    long seekLoadDuration = mp.getSeekLoadDuration();
 
-                    setRowValue(R.string.v_cache, String.format(Locale.US, "%s, %s", formatedDurationMilli(videoCachedDuration), formatedSize(videoCachedBytes)));
-                    setRowValue(R.string.a_cache, String.format(Locale.US, "%s, %s", formatedDurationMilli(audioCachedDuration), formatedSize(audioCachedBytes)));
-                    setRowValue(R.string.load_cost, String.format(Locale.US, "%d ms", mLoadCost));
-                    setRowValue(R.string.seek_cost, String.format(Locale.US, "%d ms", mSeekCost));
-                    setRowValue(R.string.seek_load_cost, String.format(Locale.US, "%d ms", seekLoadDuration));
-                    setRowValue(R.string.tcp_speed, String.format(Locale.US, "%s", formatedSpeed(tcpSpeed, 1000)));
-                    setRowValue(R.string.bit_rate, String.format(Locale.US, "%.2f kbs", bitRate/1000f));
+                    get().setRowValue(R.string.v_cache, String.format(Locale.US, "%s, %s", formatedDurationMilli(videoCachedDuration), formatedSize(videoCachedBytes)));
+                    get().setRowValue(R.string.a_cache, String.format(Locale.US, "%s, %s", formatedDurationMilli(audioCachedDuration), formatedSize(audioCachedBytes)));
+                    get().setRowValue(R.string.load_cost, String.format(Locale.US, "%d ms", get().mLoadCost));
+                    get().setRowValue(R.string.seek_cost, String.format(Locale.US, "%d ms", get().mSeekCost));
+                    get().setRowValue(R.string.seek_load_cost, String.format(Locale.US, "%d ms", seekLoadDuration));
+                    get().setRowValue(R.string.tcp_speed, String.format(Locale.US, "%s", formatedSpeed(tcpSpeed, 1000)));
+                    get().setRowValue(R.string.bit_rate, String.format(Locale.US, "%.2f kbs", bitRate / 1000f));
 
-                    mHandler.removeMessages(MSG_UPDATE_HUD);
-                    mHandler.sendEmptyMessageDelayed(MSG_UPDATE_HUD, 500);
+                    get().mHandler.removeMessages(MSG_UPDATE_HUD);
+                    get().mHandler.sendEmptyMessageDelayed(MSG_UPDATE_HUD, 500);
                 }
             }
         }
-    };
+    }
+
+    ;
 }

@@ -43,6 +43,7 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import tv.danmaku.ijk.media.player.IMediaPlayer;
 
+
 /**
  * Created by witcher on 2017/2/27 0027.
  */
@@ -417,7 +418,7 @@ public class PlayerManager implements View.OnClickListener {
                         try {
                             Thread.sleep(1000);
                         } catch (InterruptedException e) {
-                            e.printStackTrace();
+                            return;
                         }
                         if (mVvContent.isPlaying() && isHudShow() && !mIsDragging && !mIsTouchDragging) {
                             mHandler.sendEmptyMessage(MsgWhat.NOTIFY_UI);
@@ -794,6 +795,7 @@ public class PlayerManager implements View.OnClickListener {
     public void onDestroy() {
         mVvContent.release(true);
         mLoopler.interrupt();
+        mVvContent.removeHudMessage();
         mActivity.unregisterReceiver(mBatteryChangedReceiver);
         EventBus.getDefault().unregister(this);
     }

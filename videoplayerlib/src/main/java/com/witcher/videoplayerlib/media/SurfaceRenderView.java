@@ -194,10 +194,10 @@ public class SurfaceRenderView extends SurfaceView implements IRenderView {
         private int mHeight;
 
         private WeakReference<SurfaceRenderView> mWeakSurfaceView;
-        private Map<IRenderCallback, Object> mRenderCallbackMap = new ConcurrentHashMap<IRenderCallback, Object>();
+        private Map<IRenderCallback, Object> mRenderCallbackMap = new ConcurrentHashMap<>();
 
         public SurfaceCallback(@NonNull SurfaceRenderView surfaceView) {
-            mWeakSurfaceView = new WeakReference<SurfaceRenderView>(surfaceView);
+            mWeakSurfaceView = new WeakReference<>(surfaceView);
         }
 
         public void addRenderCallback(@NonNull IRenderCallback callback) {
@@ -205,8 +205,7 @@ public class SurfaceRenderView extends SurfaceView implements IRenderView {
 
             ISurfaceHolder surfaceHolder = null;
             if (mSurfaceHolder != null) {
-                if (surfaceHolder == null)
-                    surfaceHolder = new InternalSurfaceHolder(mWeakSurfaceView.get(), mSurfaceHolder);
+                surfaceHolder = new InternalSurfaceHolder(mWeakSurfaceView.get(), mSurfaceHolder);
                 callback.onSurfaceCreated(surfaceHolder, mWidth, mHeight);
             }
 
